@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Advanced Product Search & Filter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+      background: #fafafa;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .controls {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    input[type="search"], select {
+      padding: 8px 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      min-width: 180px;
+    }
+    #productCount {
+      margin-bottom: 10px;
+      font-weight: bold;
+      text-align: center;
+    }
+    #productGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+    .product-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s ease;
+    }
+    .product-card:hover {
+      box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+    }
+    .product-card img {
+      max-width: 100%;
+      height: 150px;
+      object-fit: contain;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    .product-title {
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 8px;
+      flex-grow: 1;
+    }
+    .product-price {
+      font-size: 18px;
+      font-weight: bold;
+      color: #007bff;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Advanced Product Search & Filter</h2>
+
+  <div class="controls">
+    <input type="search" id="searchInput" placeholder="Search products by title..." />
+    <select id="categoryFilter">
+      <option value="">All Categories</option>
+    </select>
+    <select id="sortSelect">
+      <option value="default">Sort by Price</option>
+      <option value="asc">Low to High</option>
+      <option value="desc">High to Low</option>
+    </select>
+  </div>
+
+  <div id="productCount"></div>
+  <div id="productGrid"></div>
+
+  <script>
+    const searchInput = document.getElementById('searchInput');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const sortSelect = document.getElementById('sortSelect');
+    const productGrid = document.getElementById('productGrid');
+    const productCount = document.getElementById('productCount');
+
+    let products = [];
+    let filteredProducts = [];
+
+    async function fetchProducts() {
+      try {
+        const [productsRes, categoriesRes] = await Promise.all([
+          fetch('https://fakestoreapi.com/products'),
+          fetch('https://fakestoreapi.com/products/categories')
+        ]);
+
+        if (!productsRes.ok || !categoriesRes.ok) throw new Error('Failed to fetch data');
+
+        products = await productsRes.json();
+        const categories = await categoriesRes.json();
+
+        populateCategories(categories);
+        filteredProducts = [...products];
+        renderProducts(filteredProducts);
+
+      } catch (err) {
+        productGrid.innerHTML = `<p style="color:red; text-align:center;">${err.message}</p>`;
+      }
+    }
+
+    function populateCategories(categories) {
+      categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+        categoryFilter.appendChild(option);
+      });
+    }
+
+    function renderProducts(list) {
+      productGrid.innerHTML = '';
+
+      if (list.length === 0) {
+        productGrid.innerHTML = `<p style="text-align:center;">No products found.</p>`;
+        productCount.textContent = `Showing 0 products`;
+        return;
+      }
+
+      productCount.textContent = `Showing ${list.length} product${list.length > 1 ? 's' : ''}`;
+
+      list.forEach(product => {
+        const card = document.createElement('div');
+        card.className = 'product-card';
+
+        card.innerHTML = `
+          <img src="${product.image}" alt="${product.title}" />
+          <div class="product-title">${product.title}</div>
+          <div class="product-price">$${product.price.toFixed(2)}</div>
+        `;
+
+        productGrid.appendChild(card);
+      });
+    }
+
+    function filterAndSort() {
+      const searchTerm = searchInput.value.toLowerCase();
+      const selectedCategory = categoryFilter.value;
+      const sortOrder = sortSelect.value;
+
+      filteredProducts = products.filter(product => {
+        const matchesSearch = product.title.toLowerCase().includes(searchTerm);
+        const matchesCategory = selectedCategory ? product.category === selectedCategory : true;
+        return matchesSearch && matchesCategory;
+      });
+
+      if (sortOrder === 'asc') {
+        filteredProducts.sort((a, b) => a.price - b.price);
+      } else if (sortOrder === 'desc') {
+        filteredProducts.sort((a, b) => b.price - a.price);
+      }
+
+      renderProducts(filteredProducts);
+    }
+
+    // Event listeners for real-time interaction
+    searchInput.addEventListener('input', filterAndSort);
+    categoryFilter.addEventListener('change', filterAndSort);
+    sortSelect.addEventListener('change', filterAndSort);
+
+    // Initial fetch
+    fetchProducts();
+  </script>
+
+</body>
+</html>
